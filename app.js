@@ -253,6 +253,13 @@ function init() {
     }
 
     // Populate Templates
+    // Add placeholder option
+    const placeholderOption = document.createElement('option');
+    placeholderOption.value = '';
+    placeholderOption.textContent = 'Choose a template...';
+    placeholderOption.disabled = true;
+    elements.templateSelect.appendChild(placeholderOption);
+    
     templates.forEach(t => {
         const option = document.createElement('option');
         option.value = t.id;
