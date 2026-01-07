@@ -7,11 +7,35 @@ let portalSettings = {
     youtube: 'yourchannel'
 };
 
+// Get today's date in Bengali format with Bangladesh timezone
+function getTodaysDate() {
+    const bengaliMonths = ['জানুয়ারি', 'ফেব্রুয়ারি', 'মার্চ', 'এপ্রিল', 'মে', 'জুন', 
+                          'জুলাই', 'আগস্ট', 'সেপ্টেম্বর', 'অক্টোবর', 'নভেম্বর', 'ডিসেম্বর'];
+    const bengaliNumbers = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
+    
+    // Get date in Bangladesh timezone (UTC+6)
+    const today = new Date();
+    const utc = today.getTime() + (today.getTimezoneOffset() * 60000);
+    const bdTime = new Date(utc + (3600000 * 6)); // Bangladesh is UTC+6
+    
+    const day = bdTime.getDate();
+    const month = bengaliMonths[bdTime.getMonth()];
+    const year = bdTime.getFullYear();
+    
+    // Convert day to Bengali
+    const bengaliDay = String(day).split('').map(d => bengaliNumbers[parseInt(d)]).join('');
+    
+    // Convert year to Bengali
+    const bengaliYear = String(year).split('').map(d => bengaliNumbers[parseInt(d)]).join('');
+    
+    return `${bengaliDay} ${month} ${bengaliYear}`;
+}
+
 const defaultState = {
-    templateId: 'AmarSurma',
+    templateId: 'somoy', // Modern TV Style
     heading: 'নতুন সংবাদ',
     subheading: 'আজকের নতুন সব খবর, এক নজরে দেখে নিন।',
-    date: '07 January 2026',
+    date: getTodaysDate(),
     domain: 'example.com',
     facebook: 'yourpage',
     youtube: 'yourchannel',
@@ -70,15 +94,20 @@ function loadState() {
         if (saved) {
             const parsed = JSON.parse(saved);
             state = { ...state, ...parsed };
+            
+            // Always update date to current date if it's old or invalid
+            state.date = getTodaysDate();
         } else {
             // No saved state - merge template defaults into defaultState
             const template = templates.find(t => t.id === state.templateId);
             if (template && template.defaults) {
                 state = { ...defaultState, ...template.defaults };
             }
+            state.date = getTodaysDate();
         }
     } catch (e) {
         console.error('Failed to load state:', e);
+        state.date = getTodaysDate();
     }
 }
 
@@ -321,7 +350,29 @@ function init() {
     elements.imageY.addEventListener('input', (e) => { state.imageY = parseInt(e.target.value); saveState(); render(); });
     
     elements.image.addEventListener('change', handleImageUpload.bind(null, 'image'));
-    elements.imageUrl.addEventListener('input', (e) => { state.image = e.target.value; saveState(); render(); });
+    elements.imageUrl.addEventListener('input', (e) => { 
+        const url = e.target.value.trim();
+        if (url && url.startsWith('http')) {
+            // Convert external URL to base64 for download compatibility
+            convertImageToBase64(url).then(base64 => {
+                if (base64) {
+                    state.image = base64;
+                } else {
+                    state.image = url;
+                }
+                saveState();
+                render();
+            }).catch(() => {
+                state.image = url;
+                saveState();
+                render();
+            });
+        } else {
+            state.image = url;
+            saveState();
+            render();
+        }
+    });
     elements.logo.addEventListener('change', handleImageUpload.bind(null, 'logo'));
     elements.logoUrl.addEventListener('input', (e) => { state.logo = e.target.value; saveState(); render(); });
     elements.adImage.addEventListener('change', handleImageUpload.bind(null, 'adImage'));
@@ -393,6 +444,16 @@ function init() {
     });
 
     updateDynamicInputs();
+    
+    // Ensure date field shows current date
+    setTimeout(() => {
+        const dateInput = elements.dynamicContent.querySelector('textarea[data-field="date"]');
+        if (dateInput) {
+            dateInput.value = getTodaysDate();
+            state.date = getTodaysDate();
+        }
+    }, 100);
+    
     render();
     // Delay fitPreview slightly to ensure DOM is ready
     setTimeout(fitPreview, 100);
@@ -803,6 +864,30 @@ function importSettings(event) {
 }
 
 // Fetch news from URL
+// Convert external image URL to base64 via proxy
+async function convertImageToBase64(imageUrl) {
+    try {
+        const proxyUrl = `proxy.php?url=${encodeURIComponent(imageUrl)}`;
+        const response = await fetch(proxyUrl);
+        
+        if (!response.ok) {
+            throw new Error('Failed to fetch image');
+        }
+        
+        const blob = await response.blob();
+        
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+        });
+    } catch (error) {
+        console.error('Error converting image:', error);
+        return null;
+    }
+}
+
 async function fetchFromUrl() {
     const url = elements.newsUrlInput.value.trim();
     if (!url) {
@@ -817,76 +902,102 @@ async function fetchFromUrl() {
     elements.fetchStatus.style.color = '#3b82f6';
     
     try {
-        // Use a CORS proxy to fetch the page
-        const proxyUrl = 'https://api.allorigins.win/raw?url=';
-        const response = await fetch(proxyUrl + encodeURIComponent(url));
+        // Use local PHP fetch endpoint (much faster!)
+        const fetchUrl = `fetch.php?url=${encodeURIComponent(url)}`;
+        
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+        
+        const response = await fetch(fetchUrl, {
+            signal: controller.signal,
+            cache: 'no-cache'
+        });
+        
+        clearTimeout(timeoutId);
         
         if (!response.ok) {
-            throw new Error('Failed to fetch URL');
+            throw new Error(`HTTP ${response.status}`);
         }
         
-        const html = await response.text();
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(html, 'text/html');
+        const data = await response.json();
         
-        // Try to extract Open Graph data or fallback to regular meta tags
-        let title = doc.querySelector('meta[property="og:title"]')?.content ||
-                   doc.querySelector('meta[name="twitter:title"]')?.content ||
-                   doc.querySelector('title')?.textContent ||
-                   '';
-        
-        let imageUrl = doc.querySelector('meta[property="og:image"]')?.content ||
-                      doc.querySelector('meta[name="twitter:image"]')?.content ||
-                      doc.querySelector('meta[property="og:image:url"]')?.content ||
-                      '';
-        
-        // Clean up title
-        title = title.trim();
-        
-        if (title) {
-            // Update heading field
-            const template = templates.find(t => t.id === state.templateId);
-            if (template) {
-                state.heading = title;
-                
-                // Update the dynamic input if it exists
-                const headingInput = elements.dynamicContent.querySelector('textarea[data-field="heading"]');
-                if (headingInput) {
-                    headingInput.value = title;
-                }
-                
-                saveState();
-                render();
-            }
+        if (data.error) {
+            throw new Error(data.error);
         }
         
-        if (imageUrl) {
-            // Make sure it's an absolute URL
-            if (imageUrl.startsWith('//')) {
-                imageUrl = 'https:' + imageUrl;
-            } else if (imageUrl.startsWith('/')) {
-                const urlObj = new URL(url);
-                imageUrl = urlObj.origin + imageUrl;
+        let updated = false;
+        
+        // Update title
+        if (data.title && data.title.length > 3) {
+            state.heading = data.title;
+            
+            // Update the dynamic input if it exists
+            const headingInput = elements.dynamicContent.querySelector('textarea[data-field="heading"]');
+            if (headingInput) {
+                headingInput.value = data.title;
             }
             
-            state.image = imageUrl;
-            elements.imageUrl.value = imageUrl;
-            saveState();
-            render();
+            updated = true;
         }
         
-        if (title || imageUrl) {
-            elements.fetchStatus.textContent = `✓ ${title ? 'Title' : ''}${title && imageUrl ? ' and ' : ''}${imageUrl ? 'Image' : ''} fetched!`;
+        // Update image - convert to base64 for download compatibility
+        if (data.image && data.image.startsWith('http')) {
+            // Convert external URL to base64 via proxy
+            convertImageToBase64(data.image).then(base64 => {
+                if (base64) {
+                    state.image = base64;
+                    elements.imageUrl.value = data.image; // Keep original URL in input
+                    saveState();
+                    render();
+                }
+            }).catch(err => {
+                console.warn('Failed to convert image, using direct URL:', err);
+                state.image = data.image;
+                elements.imageUrl.value = data.image;
+                saveState();
+                render();
+            });
+            updated = true;
+        }
+        
+        // Update description if available (can be used for subheading)
+        if (data.description && data.description.length > 10) {
+            const subheadingInput = elements.dynamicContent.querySelector('textarea[data-field="subheading"]');
+            if (subheadingInput && !state.subheading) {
+                state.subheading = data.description.substring(0, 150); // Limit length
+                subheadingInput.value = state.subheading;
+            }
+        }
+        
+        if (updated) {
+            saveState();
+            render();
+            
+            const parts = [];
+            if (data.title) parts.push('Title');
+            if (data.image) parts.push('Image');
+            if (data.description) parts.push('Description');
+            
+            elements.fetchStatus.textContent = `✓ ${parts.join(', ')} fetched successfully!`;
             elements.fetchStatus.style.color = '#10b981';
+            
+            // Show success toast
+            showToast(`✓ Successfully fetched from ${data.siteName || 'website'}!`);
         } else {
-            elements.fetchStatus.textContent = 'No title or image found';
+            elements.fetchStatus.textContent = '⚠ No title or image found';
             elements.fetchStatus.style.color = '#f59e0b';
         }
         
     } catch (error) {
         console.error('Error fetching URL:', error);
-        elements.fetchStatus.textContent = 'Failed to fetch. Try a different URL.';
+        
+        if (error.name === 'AbortError') {
+            elements.fetchStatus.textContent = '❌ Request timeout. Try again.';
+        } else {
+            elements.fetchStatus.textContent = '❌ ' + (error.message || 'Failed to fetch. Check URL.');
+        }
         elements.fetchStatus.style.color = '#ef4444';
+        showToast('❌ Failed to fetch content', 'error');
     } finally {
         elements.fetchUrlBtn.disabled = false;
         elements.fetchUrlBtn.textContent = 'Fetch Title & Image';
