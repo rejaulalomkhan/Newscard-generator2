@@ -1,10 +1,10 @@
 import { templates } from './templates.js';
 
 const defaultState = {
-    templateId: 'jamuna',
-    heading: 'সন্ধ্যার সংবাদ',
-    subheading: 'আজকের গুরুত্বপূর্ণ সব খবর, এক নজরে দেখে নিন।',
-    date: '27 December 2025',
+    templateId: 'AmarSurma',
+    heading: 'নতুন সংবাদ',
+    subheading: 'আজকের নতুন সব খবর, এক নজরে দেখে নিন।',
+    date: '07 January 2026',
     domain: 'example.com',
     facebook: 'yourpage',
     youtube: 'yourchannel',

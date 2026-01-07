@@ -1,7 +1,7 @@
 export const templates = [
   {
     id: 'classic',
-    name: 'Classic Newspaper',
+    name: 'Classic Layout',
     description: 'A traditional layout with a large image and bottom text area.',
     defaults: {
       accentColor: '#D9232D',
@@ -998,7 +998,7 @@ export const templates = [
   },
   {
     id: 'classikalo',
-    name: 'Classikalo',
+    name: 'Elegant Overlay',
     description: 'Clean news card style.',
     defaults: {
       accentColor: '#D9232D',
@@ -1120,7 +1120,7 @@ export const templates = [
   },
   {
     id: 'bbc',
-    name: 'BTC News Style',
+    name: 'Bold Header Style',
     description: 'Classic clean design with red accents.',
     defaults: {
       accentColor: '#b80000',
@@ -1269,7 +1269,7 @@ export const templates = [
   },
   {
     id: 'ntv',
-    name: 'NTB Style',
+    name: 'Professional Border',
     description: 'Vibrant green accent with clean typography.',
     defaults: {
       accentColor: '#00A651',
@@ -1413,7 +1413,7 @@ export const templates = [
   },
   {
     id: 'btv',
-    name: 'BTB Style',
+    name: 'Striking Top Bar',
     description: 'Official and formal broadcast style.',
     defaults: {
       accentColor: '#006a4e',
@@ -1560,7 +1560,7 @@ export const templates = [
   },
   {
     id: 'amaderdesh',
-    name: 'Daily Tader Desh',
+    name: 'Traditional Header',
     description: 'Bold newspaper headline style.',
     defaults: {
       accentColor: '#009958',
@@ -1732,7 +1732,7 @@ export const templates = [
   },
   {
     id: 'somoy',
-    name: 'Semay TV',
+    name: 'Modern TV Style',
     description: 'Modern broadcast style with bottom ticker.',
     defaults: {
       accentColor: '#BD0706',
@@ -1921,13 +1921,13 @@ export const templates = [
   },
   {
     id: 'jamuna',
-    name: 'Kamuna TV',
+    name: 'Broadcast Dual Bar',
     description: 'Sleek design with gradient accents.',
     defaults: {
       accentColor: '#9b090d',
       bgColor: '#810004',
       textColor: '#ffffff',
-      domain: 'www.kamuna.tv',
+      domain: 'www.amarsurma.com',
       facebook: 'kamunatelevision',
       youtube: 'kamunatvbd',
       font: 'Noto Serif Bengali'
@@ -2083,7 +2083,7 @@ export const templates = [
   },
   {
     id: 'vertical1',
-    name: 'Vertical #1',
+    name: 'Vertical Split',
     description: 'Split layout with quote on left and image on right.',
     defaults: {
       accentColor: '#D9232D',
