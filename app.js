@@ -1,5 +1,12 @@
 import { templates } from './templates.js';
 
+// Portal Settings - can be customized by user
+let portalSettings = {
+    domain: 'example.com',
+    facebook: 'yourpage',
+    youtube: 'yourchannel'
+};
+
 const defaultState = {
     templateId: 'AmarSurma',
     heading: 'নতুন সংবাদ',
@@ -111,14 +118,120 @@ const elements = {
     fetchStatus: document.getElementById('fetchStatus'),
     exportBtn: document.getElementById('exportBtn'),
     importBtn: document.getElementById('importBtn'),
-    importFileInput: document.getElementById('importFileInput')
+    importFileInput: document.getElementById('importFileInput'),
+    defaultDomain: document.getElementById('defaultDomain'),
+    defaultFacebook: document.getElementById('defaultFacebook'),
+    defaultYoutube: document.getElementById('defaultYoutube'),
+    savePortalSettings: document.getElementById('savePortalSettings'),
+    exportPortalSettings: document.getElementById('exportPortalSettings'),
+    portalModal: document.getElementById('portalSettingsModal'),
+    openPortalSettings: document.getElementById('openPortalSettings'),
+    closePortalModal: document.getElementById('closePortalModal')
 };
 
 let fontChoices;
 
+// Portal Settings Management
+function loadPortalSettings() {
+    try {
+        const saved = localStorage.getItem('portalSettings');
+        if (saved) {
+            portalSettings = JSON.parse(saved);
+            // Update default state with portal settings
+            defaultState.domain = portalSettings.domain;
+            defaultState.facebook = portalSettings.facebook;
+            defaultState.youtube = portalSettings.youtube;
+        }
+        // Update UI
+        if (elements.defaultDomain) elements.defaultDomain.value = portalSettings.domain;
+        if (elements.defaultFacebook) elements.defaultFacebook.value = portalSettings.facebook;
+        if (elements.defaultYoutube) elements.defaultYoutube.value = portalSettings.youtube;
+    } catch (e) {
+        console.error('Failed to load portal settings:', e);
+    }
+}
+
+function openPortalModal() {
+    elements.portalModal.classList.add('active');
+    document.body.style.overflow = 'hidden';
+}
+
+function closePortalModal() {
+    elements.portalModal.classList.remove('active');
+    document.body.style.overflow = '';
+}
+
+function savePortalSettings() {
+    portalSettings = {
+        domain: elements.defaultDomain.value.trim() || 'example.com',
+        facebook: elements.defaultFacebook.value.trim() || 'yourpage',
+        youtube: elements.defaultYoutube.value.trim() || 'yourchannel'
+    };
+    
+    try {
+        localStorage.setItem('portalSettings', JSON.stringify(portalSettings));
+        
+        // Update default state
+        defaultState.domain = portalSettings.domain;
+        defaultState.facebook = portalSettings.facebook;
+        defaultState.youtube = portalSettings.youtube;
+        
+        // Update current state with portal settings
+        state.domain = portalSettings.domain;
+        state.facebook = portalSettings.facebook;
+        state.youtube = portalSettings.youtube;
+        
+        // Update dynamic input fields if they exist
+        updateDynamicInputs();
+        
+        // Re-render the card with new values
+        render();
+        
+        // Save the updated state
+        saveState();
+        
+        // Close modal and show success
+        closePortalModal();
+        
+        // Show a nice toast notification instead of alert
+        showToast('✓ Portal settings saved successfully!');
+    } catch (e) {
+        console.error('Failed to save portal settings:', e);
+        showToast('❌ Failed to save settings. Please try again.', 'error');
+    }
+}
+
+function showToast(message, type = 'success') {
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    
+    setTimeout(() => toast.classList.add('show'), 100);
+    setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
+}
+
+function exportPortalSettings() {
+    const data = {
+        portalSettings: portalSettings,
+        exportDate: new Date().toISOString()
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'portal-settings.json';
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
 // Initialize
 function init() {
     initTheme();
+    loadPortalSettings();
     loadState();
 
     // Initialize Choices.js for fonts
@@ -210,9 +323,23 @@ function init() {
     elements.downloadBtn.addEventListener('click', downloadImage);
     elements.resetBtn.addEventListener('click', resetState);
     elements.fetchUrlBtn.addEventListener('click', fetchFromUrl);
+    elements.openPortalSettings.addEventListener('click', openPortalModal);
+    elements.closePortalModal.addEventListener('click', closePortalModal);
+    elements.savePortalSettings.addEventListener('click', savePortalSettings);
+    elements.exportPortalSettings.addEventListener('click', exportPortalSettings);
     elements.exportBtn.addEventListener('click', exportSettings);
     elements.importBtn.addEventListener('click', () => elements.importFileInput.click());
     elements.importFileInput.addEventListener('change', importSettings);
+    
+    // Close modal when clicking overlay
+    elements.portalModal.querySelector('.modal-overlay').addEventListener('click', closePortalModal);
+    
+    // Close modal on Escape key
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && elements.portalModal.classList.contains('active')) {
+            closePortalModal();
+        }
+    });
 
     window.addEventListener('resize', fitPreview);
 
